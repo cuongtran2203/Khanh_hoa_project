@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 import onnxruntime
-from func import *
+from .func import *
 import cv2
 class Detector(object):
     def __init__(self, model='/Users/macos/Desktop/Khanh_hoa_project/weights/yolov5n.onnx') -> None:

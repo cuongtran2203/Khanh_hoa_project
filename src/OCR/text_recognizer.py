@@ -29,7 +29,7 @@ class TextRecognizer(object):
         self.precision = precision
         postprocess_params = {
         'name': 'CTCLabelDecode',
-        "character_dict_path":"./src/model/dict.txt",
+        "character_dict_path":"/Users/macos/Desktop/Khanh_hoa_project/weights/dict.txt",
         "use_space_char": True
     }
         self.postprocess_op = build_post_process(postprocess_params)
