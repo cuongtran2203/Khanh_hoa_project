@@ -19,7 +19,7 @@ from ppocr.utils.logging import get_logger
 logger = get_logger()
 
 class TextRecognizer(object):
-    def __init__(self, model_dir='./src/model/paddle_v7', use_onnx=False, precision=None) -> None:
+    def __init__(self, model_dir='/Users/macos/Desktop/Khanh_hoa_project/weights/en_PP-OCRv3_rec_infer', use_onnx=False, precision=None) -> None:
         self.rec_image_shape = [3,48,320]
         self.rec_batch_num = 6
         self.rec_algorithm = "SVTR_LCNet"
