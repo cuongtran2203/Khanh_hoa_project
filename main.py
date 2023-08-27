@@ -1,9 +1,8 @@
 import numpy as np
 import cv2
 import time
-from src.tracking.byte_tracker import BYTETracker
-from src.detector.YOLO_detector import Detector
-from detector.func import *
+from src.tracking.byte_track import BYTETracker
+from src.detector.Yolo_detect import Detector
 import time
 import math
 p1, p2,p3,p4 = None, None,None,None
