@@ -3,6 +3,8 @@ import cv2
 import time
 from src.tracking.byte_track import BYTETracker
 from src.detector.Yolo_detect import Detector
+from src.MMC.color_recognition import Color_Recognitiion
+from src.OCR.text_recognizer import TextRecognizer
 import time
 import math
 p1, p2,p3,p4 = None, None,None,None
@@ -58,8 +60,118 @@ class Tracking():
         super(Tracking,self).__init__()
         args=Args()
         self.tracker = BYTETracker(args, frame_rate=22)
-        self.detector = Detector()
+        self.vehicle_detector = Detector()
+        self.plate_detector=Detector()
+        self.hetmet_trafficlight=Detector()
+        self.color_recog=Color_Recognitiion()
+        self.lp_recog=TextRecognizer()
         self.test_size=(640,640)
+    def __four_points_transform(self, image):
+        H, W, _= image.shape
+        rect = np.asarray([[0, 0], [W ,0], [W, H], [0, H]], dtype= "float32")
+        width = 195
+        height = 50
+        dst = np.array([
+            [0, 0],
+            [width - 1, 0],
+            [width - 1, height - 1],
+            [0, height - 1]], dtype= "float32")
+        M = cv2.getPerspectiveTransform(rect, dst)
+        warp = cv2.warpPerspective(image, M, (width, height))
+
+        return warp
+
+    def __norm_plate(self, iplate, classID=None):
+        if iplate is None:
+            return []
+        h, w, _ = iplate.shape
+        if w / h > 2.5:
+            iplate_transform = self.__four_points_transform(iplate)
+
+            return iplate_transform
+        else:
+            iplate_1 = iplate[0:int(h / 2), 0:w]
+            iplate_2 = iplate[int(h / 2):h, 0:w]
+            _iplate_1 = cv2.resize(iplate_1, (165, 50))
+            _iplate_2 = cv2.resize(iplate_2, (165, 50))
+            iplate_concat = cv2.hconcat([_iplate_1, _iplate_2])
+            iplate_blur = cv2.GaussianBlur(iplate_concat, (7, 7), 0)
+
+            return iplate_blur
+
+    def __rule(self, text):
+        text_new = ''
+        text = ''.join(char for char in text if char.isalnum() or char.isalpha())
+        text = text.upper()
+        arr = list(text)
+        if len(arr) == 9 and arr[3].isalpha() and not arr[2].isalpha():
+            arr = arr[1:] 
+        if len(arr) > 6:
+            if arr[2] in '8':
+                arr = arr[:2] + ['B'] + arr[2+1:]
+            if arr[0] in 'B':
+                arr = ['8'] + arr[1:]
+            if arr[1] in 'B':
+                arr = arr[:1] + ['8'] + arr[1+1:]
+            # 7 Z
+            if arr[0] in 'Z':
+                arr = ['7'] + arr[1:]
+            if arr[1] in 'Z':
+                arr = arr[:1] + ['7'] + arr[1+1:]
+            # 0 D
+            if arr[2] in '0':
+                arr = arr[:2] + ['D'] + arr[2+1:]
+            # A 4
+            if arr[2] in '4':
+                arr = arr[:2] + ['A'] + arr[2+1:]
+            # 7 V
+            if arr[0] in 'V':
+                arr = ['7'] + arr[1:]
+            if arr[1] in 'V':
+                arr = arr[:1] + ['7'] + arr[1+1:]
+            # O D
+            if arr[3] in 'O':
+                arr = arr[:3] + ['D'] + arr[3+1:]
+            text_new = ''.join(str(elem) for elem in arr)
+        
+        return text_new
+    
+    def color_recognition(self,img,bbox_car):
+        '''
+        Nhận diện màu xe ,cắt các vùng ảnh chứa xe r cho vào nhận diện 
+        '''
+        color_list=[]
+        for box in bbox_car :
+            box=list(map(int,box))
+            car_img_crop=img[box[1]:box[3],box[0]:box[2]]
+            color=self.color_recog.infer(car_img_crop)
+            color_list.append(color)
+        return color_list
+    def plate_recognition(self,img,bbox_vehicle):
+        '''
+        Phát hiện phương tiện phải chạy liên tục
+        sau đó đến điểm cần detect biển thì chạy detect biển 
+        '''
+        pass
+    def hemet_detector(self,img,bbox_person):
+        '''
+        Phát hiện người 
+        sau đó crop vùng người trong ảnh r cho vào mô hình 
+        '''
+        for box in bbox_person:
+            box=list(map(int,box))
+            person_img=img[box[1]:box[3],box[0]:box[2]]
+            output,bbox=self.hetmet_trafficlight.detect(person_img)
+            cls=output[:,5]
+        return cls
+    
+    def trafic_detection(self,img,cls_traffic_light):
+        '''
+        Phát hiện trên từng frame hình 
+        đưa ra nhãn 
+        '''
+        pass
+
     def infer(self,img:np.ndarray):
         img_info = {"id": 0}
         height, width = img.shape[:2]
@@ -215,17 +327,7 @@ if __name__ == '__main__':
                         velocity=(distance_const/end_time)*3.6
                         print("velocity : ",velocity)
                         print("Khoảng cách đối tượng di chuyển trong vùng quan sát là :",distance_const)
-                        cv2.putText(img,"{:.2f} km/h".format(velocity),(int(box[0]),int(box[1]+10)),cv2.FONT_HERSHEY_COMPLEX_SMALL,1,(255,12,14),1)
-            cv2.putText(img,"Bus : {}".format(list_count_left[1]),(max(point_1[0],point_2[0])-250,50),cv2.FONT_HERSHEY_COMPLEX_SMALL,1,(255,255,200),2)
-            cv2.putText(img,"Car : {}".format(list_count_left[0]),(max(point_1[0],point_2[0])-250,70),cv2.FONT_HERSHEY_COMPLEX_SMALL,1,(255,255,200),2)
-            cv2.putText(img,"Trailer : {}".format(list_count_left[2]),(max(point_1[0],point_2[0])-250,90),cv2.FONT_HERSHEY_COMPLEX_SMALL,1,(255,255,200),2)
-            cv2.putText(img,"Truck : {}".format(list_count_left[3]),(max(point_1[0],point_2[0])-250,110),cv2.FONT_HERSHEY_COMPLEX_SMALL,1,(255,255,200),2)
-            cv2.putText(img,"SUM LANE 1 : {}".format(sum(list_count_left)),(max(point_1[0],point_2[0])-250,150),cv2.FONT_HERSHEY_COMPLEX_SMALL,1,(255,255,200),2) 
-            cv2.putText(img,"Bus : {}".format(list_count_right[1]),(max(point_1[0],point_2[0])+250,50),cv2.FONT_HERSHEY_COMPLEX_SMALL,1,(255,255,255),2)
-            cv2.putText(img,"Car : {}".format(list_count_right[0]),(max(point_1[0],point_2[0])+250,70),cv2.FONT_HERSHEY_COMPLEX_SMALL,1,(255,255,255),2)
-            cv2.putText(img,"Trailer : {}".format(list_count_right[2]),(max(point_1[0],point_2[0])+250,90),cv2.FONT_HERSHEY_COMPLEX_SMALL,1,(255,255,255),2)
-            cv2.putText(img,"Truck : {}".format(list_count_right[3]),(max(point_1[0],point_2[0])+250,110),cv2.FONT_HERSHEY_COMPLEX_SMALL,1,(255,255,255),2)
-            cv2.putText(img,"SUM LANE 2 : {}".format(sum(list_count_right)),(max(point_1[0],point_2[0])+250,150),cv2.FONT_HERSHEY_COMPLEX_SMALL,1,(255,255,255),2)           
+                        cv2.putText(img,"{:.2f} km/h".format(velocity),(int(box[0]),int(box[1]+10)),cv2.FONT_HERSHEY_COMPLEX_SMALL,1,(255,12,14),1)         
         # result.write(img)
         #  
         cv2.imshow('frame',img)

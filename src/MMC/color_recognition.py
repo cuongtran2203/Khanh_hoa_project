@@ -30,8 +30,8 @@ class Color_Recognitiion():
         print(predicted)
         return classes_name[predicted[0]]
     
-if __name__ == "__main__":
-    img=Image.open("/Users/macos/Khanh_hoa_project/test_model.jpeg")
-    model=Color_Recognitiion("/Users/macos/Khanh_hoa_project/weights/best_weights.pth")
-    output=model.infer(img)
-    print(output)
+# if __name__ == "__main__":
+#     img=Image.open("/Users/macos/Khanh_hoa_project/test_model.jpeg")
+#     model=Color_Recognitiion("/Users/macos/Khanh_hoa_project/weights/best_weights.pth")
+#     output=model.infer(img)
+#     print(output)
